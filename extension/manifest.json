@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Email Priority Sorter",
+  "version": "1.0.0",
+  "description": "Auto-classify Gmail into smart folders using AI.",
+  "icons": {
+  "16": "icons/icon16.png",
+  "48": "icons/icon48.png",
+  "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Email Priority Sorter"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "identity",
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://gmail.googleapis.com/*",
+    "https://www.googleapis.com/*"
+  ],
+  "oauth2": {
+    "client_id": "394648133255-onh7jic53ab39kcinaaeualgb6o0rv9r.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.modify"
+    ]
+  }
+}
