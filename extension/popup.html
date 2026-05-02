@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Email Sorter</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 320px; font-family: 'Segoe UI', system-ui, sans-serif; background: #F7F9FC; color: #0A0E1A; }
+    
+    /* Header */
+    .hdr { background: #0D1B2A; color: white; padding: 16px; border-bottom: 3px solid #1E88E5; }
+    .hdr-top { display: flex; justify-content: space-between; align-items: center; }
+    .hdr h1 { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    .hdr-sub { font-size: 11px; color: #90CAF9; margin-top: 4px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; transition: 0.3s; }
+    .status-dot.off { background: #E53935; }
+
+    /* Auto-Scan Toggle */
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: white; border-bottom: 1px solid #EEF2F7; }
+    .toggle-lbl { font-weight: 600; font-size: 13px; }
+    .toggle { position: relative; width: 44px; height: 24px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: #CBD5E0; border-radius: 24px; transition: .3s; }
+    .slider:before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
+    input:checked + .slider { background: #1E88E5; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    /* Stats Grid */
+    .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 12px 16px; }
+    .stat { background: white; border-radius: 8px; padding: 10px 4px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #EEF2F7; }
+    .stat-n { font-size: 20px; font-weight: 700; color: #1E88E5; }
+    .stat-l { font-size: 10px; color: #64748B; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Action Button */
+    .btn-run { width: calc(100% - 32px); margin: 0 16px 12px; padding: 12px; background: #1E88E5; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    .btn-run:hover { background: #1565C0; }
+    .btn-run:active { transform: scale(0.98); }
+    .btn-run.scanning { background: #4CAF50; cursor: wait; }
+
+    /* Activity Log */
+    .log { padding: 0 16px 12px; }
+    .log-hdr { font-size: 10px; font-weight: 700; color: #64748B; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .log-list { background: white; border-radius: 8px; border: 1px solid #EEF2F7; overflow: hidden; }
+    .empty { color: #8895A7; font-size: 12px; text-align: center; padding: 16px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="hdr">
+    <div class="hdr-top">
+      <h1>✉️ EPD Detector</h1>
+      <span id="status-dot" class="status-dot off"></span>
+    </div>
+    <div class="hdr-sub" id="last-run">System Standing By</div>
+  </div>
+
+  <div class="toggle-row">
+    <span class="toggle-lbl">Auto-Scan (1 min)</span>
+    <label class="toggle">
+      <input type="checkbox" id="toggle-enable">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="s-today">0</div><div class="stat-l">Today</div></div>
+    <div class="stat"><div class="stat-n" id="s-total">0</div><div class="stat-l">Total</div></div>
+    <div class="stat"><div class="stat-n" id="s-cats">0</div><div class="stat-l">Folders</div></div>
+  </div>
+
+  <button class="btn-run" id="btn-run">▶ Run Inbox Scan Now</button>
+
+  <div class="log">
+    <div class="log-hdr">Recent Activity</div>
+    <div class="log-list" id="log-list">
+      <p class="empty">Waiting for first scan...</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
