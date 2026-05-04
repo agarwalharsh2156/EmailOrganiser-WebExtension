@@ -6,13 +6,30 @@
   <title>Email Sorter</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { width: 320px; font-family: 'Segoe UI', system-ui, sans-serif; background: #F7F9FC; color: #0A0E1A; }
+    body { width: 320px; font-family: 'Segoe UI', system-ui, sans-serif; background: #F7F9FC; color: #0A0E1A; overflow-x: hidden; }
     
+    /* Global Buttons */
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    .btn-primary { background: #1E88E5; color: white; }
+    .btn-primary:hover { background: #1565C0; }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { background: #90CAF9; cursor: not-allowed; transform: none; }
+
+    /* --- AUTH VIEW --- */
+    #auth-view { display: none; padding: 40px 24px; text-align: center; height: 100%; background: white; }
+    #auth-view h2 { font-size: 18px; color: #0D1B2A; margin-bottom: 8px; }
+    #auth-view p { font-size: 13px; color: #64748B; margin-bottom: 24px; line-height: 1.5; }
+    
+    /* --- DASHBOARD VIEW --- */
+    #dashboard-view { display: none; }
+
     /* Header */
     .hdr { background: #0D1B2A; color: white; padding: 16px; border-bottom: 3px solid #1E88E5; }
     .hdr-top { display: flex; justify-content: space-between; align-items: center; }
     .hdr h1 { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
-    .hdr-sub { font-size: 11px; color: #90CAF9; margin-top: 4px; }
+    .logout-btn { background: none; border: 1px solid #64748B; color: #90CAF9; font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+    .logout-btn:hover { background: #1E293B; color: white; }
+    .hdr-sub { font-size: 11px; color: #90CAF9; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; transition: 0.3s; }
     .status-dot.off { background: #E53935; }
 
@@ -32,49 +49,69 @@
     .stat-n { font-size: 20px; font-weight: 700; color: #1E88E5; }
     .stat-l { font-size: 10px; color: #64748B; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    /* Action Button */
-    .btn-run { width: calc(100% - 32px); margin: 0 16px 12px; padding: 12px; background: #1E88E5; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
-    .btn-run:hover { background: #1565C0; }
-    .btn-run:active { transform: scale(0.98); }
-    .btn-run.scanning { background: #4CAF50; cursor: wait; }
+    .run-wrapper { padding: 0 16px 12px; }
 
-    /* Activity Log */
-    .log { padding: 0 16px 12px; }
+    /* Live Stepper */
+    .log { padding: 0 16px 16px; }
     .log-hdr { font-size: 10px; font-weight: 700; color: #64748B; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .log-list { background: white; border-radius: 8px; border: 1px solid #EEF2F7; overflow: hidden; }
-    .empty { color: #8895A7; font-size: 12px; text-align: center; padding: 16px 0; }
+    .stepper { background: white; border-radius: 8px; border: 1px solid #EEF2F7; padding: 12px; list-style: none; }
+    .step { font-size: 12px; color: #64748B; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
+    .step:last-child { margin-bottom: 0; }
+    .step .icon { width: 16px; text-align: center; font-size: 14px; }
+    
+    /* Stepper States */
+    .step.active { color: #1E88E5; font-weight: 600; }
+    .step.done { color: #0A0E1A; }
+    .step.error { color: #E53935; font-weight: 600; }
   </style>
 </head>
 <body>
 
-  <div class="hdr">
-    <div class="hdr-top">
-      <h1>✉️ EPD Detector</h1>
-      <span id="status-dot" class="status-dot off"></span>
+  <div id="auth-view">
+    <div style="font-size: 40px; margin-bottom: 12px;">✉️</div>
+    <h2>Welcome to EPD</h2>
+    <p>Please connect your Gmail account to allow the AI to organise your inbox.</p>
+    <button class="btn btn-primary" id="btn-login">Connect Gmail</button>
+  </div>
+
+  <div id="dashboard-view">
+    <div class="hdr">
+      <div class="hdr-top">
+        <h1>✉️ EPD Detector</h1>
+        <button class="logout-btn" id="btn-logout">Logout</button>
+      </div>
+      <div class="hdr-sub">
+        <span id="status-dot" class="status-dot off"></span>
+        <span id="last-run">System Standing By</span>
+      </div>
     </div>
-    <div class="hdr-sub" id="last-run">System Standing By</div>
-  </div>
 
-  <div class="toggle-row">
-    <span class="toggle-lbl">Auto-Scan (1 min)</span>
-    <label class="toggle">
-      <input type="checkbox" id="toggle-enable">
-      <span class="slider"></span>
-    </label>
-  </div>
+    <div class="toggle-row">
+      <span class="toggle-lbl">Auto-Scan (1 min)</span>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-enable">
+        <span class="slider"></span>
+      </label>
+    </div>
 
-  <div class="stats">
-    <div class="stat"><div class="stat-n" id="s-today">0</div><div class="stat-l">Today</div></div>
-    <div class="stat"><div class="stat-n" id="s-total">0</div><div class="stat-l">Total</div></div>
-    <div class="stat"><div class="stat-n" id="s-cats">0</div><div class="stat-l">Folders</div></div>
-  </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-n" id="s-today">0</div><div class="stat-l">Today</div></div>
+      <div class="stat"><div class="stat-n" id="s-total">0</div><div class="stat-l">Total</div></div>
+      <div class="stat"><div class="stat-n" id="s-cats">0</div><div class="stat-l">Folders</div></div>
+    </div>
 
-  <button class="btn-run" id="btn-run">▶ Run Inbox Scan Now</button>
+    <div class="run-wrapper">
+      <button class="btn btn-primary" id="btn-run">▶ Run Inbox Scan Now</button>
+    </div>
 
-  <div class="log">
-    <div class="log-hdr">Recent Activity</div>
-    <div class="log-list" id="log-list">
-      <p class="empty">Waiting for first scan...</p>
+    <div class="log">
+      <div class="log-hdr">Live Process Log</div>
+      <ul class="stepper" id="stepper-list">
+        <li id="step-auth" class="step"><span class="icon">○</span> Authenticating</li>
+        <li id="step-fetch" class="step"><span class="icon">○</span> Fetching Unread</li>
+        <li id="step-ai" class="step"><span class="icon">○</span> AI Classification</li>
+        <li id="step-move" class="step"><span class="icon">○</span> Moving to Folders</li>
+      </ul>
     </div>
   </div>
 
