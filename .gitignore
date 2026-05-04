@@ -3,3 +3,6 @@ data/
 dataset/
 emails.csv
 project_venv
+cleaned_enron_v6 2.csv
+*.crx
+*.pem
