@@ -56,24 +56,31 @@ async function runFullScan() {
       newIds.map((id) => fetchEmail(id, token)),
     );
     const cleanEmails = rawMsgs.map(parseEmail);
+    console.log("✔️ Parsed", cleanEmails.length, "clean emails");
 
     // Step 2: Single batch call to backend
-    const batchResults = await callBackend(cleanEmails); // now receives array, returns array
-    console.log(`🤖 Batch classified ${batchResults.length} emails`);
+    console.log("🟣 About to call callBackend with", cleanEmails.length, "emails");
+    try {
+      const batchResults = await callBackend(cleanEmails);
+      console.log(`🤖 Batch classified ${batchResults.length} emails`);
 
-    // Step 3: Apply labels in parallel
-    await Promise.all(
-      batchResults.map(async (aiResult, i) => {
-        const id = newIds[i];
-        const labelId = await getOrCreateLabel(aiResult.predicted_class, token);
-        await moveEmailToLabel(id, labelId, token);
-        console.log(
-          `✅ "${cleanEmails[i].subject}" → [${aiResult.predicted_class}]`,
-        );
-        processedIds[id] = true;
-        totalSorted++;
-      }),
-    );
+      // Step 3: Apply labels in parallel
+      await Promise.all(
+        batchResults.map(async (aiResult, i) => {
+          const id = newIds[i];
+          const labelId = await getOrCreateLabel(aiResult.predicted_class, token);
+          await moveEmailToLabel(id, labelId, token);
+          console.log(
+            `✅ "${cleanEmails[i].subject}" → [${aiResult.predicted_class}]`,
+          );
+          processedIds[id] = true;
+          totalSorted++;
+        }),
+      );
+    } catch (backendError) {
+      console.error("❌ Error in backend processing:", backendError);
+      throw backendError;
+    }
 
     // Save updated lists back to UI
     await chrome.storage.local.set({ processedIds, totalSorted });
@@ -86,6 +93,7 @@ async function runFullScan() {
 async function getOrCreateLabel(categoryName, token) {
   const folderName = `EPD/${categoryName}`;
 
+  // Fetch existing labels
   const res = await fetch(
     "https://gmail.googleapis.com/gmail/v1/users/me/labels",
     {
@@ -97,8 +105,13 @@ async function getOrCreateLabel(categoryName, token) {
     (l) => l.name.toLowerCase() === folderName.toLowerCase(),
   );
 
-  if (existing) return existing.id;
+  if (existing) {
+    console.log(`🏷️ Label "${folderName}" already exists with ID: ${existing.id}`);
+    return existing.id;
+  }
 
+  // Label doesn't exist, create it
+  console.log(`🆕 Creating new label: "${folderName}"`);
   const createRes = await fetch(
     "https://gmail.googleapis.com/gmail/v1/users/me/labels",
     {
@@ -114,12 +127,25 @@ async function getOrCreateLabel(categoryName, token) {
       }),
     },
   );
+  
+  if (!createRes.ok) {
+    const errorData = await createRes.json();
+    console.error("❌ Failed to create label:", errorData);
+    throw new Error(`Failed to create label: ${createRes.status}`);
+  }
+  
   const newLabel = await createRes.json();
+  console.log(`✅ Label created successfully with ID: ${newLabel.id}`);
+  
+  // Small delay to ensure Gmail has synced the label before trying to use it
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
   return newLabel.id;
 }
 
 async function moveEmailToLabel(msgId, labelId, token) {
-  await fetch(
+  console.log(`🔄 Moving email ${msgId} to label ${labelId}`);
+  const res = await fetch(
     `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}/modify`,
     {
       method: "POST",
@@ -133,6 +159,14 @@ async function moveEmailToLabel(msgId, labelId, token) {
       }),
     },
   );
+  
+  if (!res.ok) {
+    const errorData = await res.json();
+    console.error(`❌ Failed to move email: ${res.status}`, errorData);
+    throw new Error(`Failed to move email: ${res.status}`);
+  }
+  
+  console.log(`✅ Email ${msgId} moved successfully`);
 }
 
 // ─── 5. HELPER FUNCTIONS ────────────────────────────────────────
@@ -207,6 +241,8 @@ function decodeBase64url(b64) {
 async function callBackend(cleanEmails) {
   const BACKEND_URL = 'http://127.0.0.1:8000';
 
+  console.log("🔵 callBackend called with", cleanEmails.length, "emails");
+
   const payload = cleanEmails.map(e => ({
     message_id: e.id,
     subject:    e.subject,
@@ -214,18 +250,27 @@ async function callBackend(cleanEmails) {
     from:       e.from
   }));
 
+  console.log("📤 Payload to backend:", payload);
+  console.log("📤 Payload JSON:", JSON.stringify({ emails: payload }));
+  
   try {
+    console.log("🟡 Attempting to fetch from", BACKEND_URL + "/classify-batch");
     const res = await fetch(`${BACKEND_URL}/classify-batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ emails: payload })
     });
+    console.log("🟡 Fetch response status:", res.status, res.ok);
+    
     if (!res.ok) throw new Error(`Backend error: ${res.status}`);
     const data = await res.json();
+    console.log("📥 Response from backend:", data);
+    console.log("🟢 Returning", data.results?.length || 0, "results");
     return data.results; // array of { predicted_class, confidence }
 
   } catch (error) {
-    console.warn("⚠️ Cannot reach backend. Using MOCK predictions.");
+    console.warn("⚠️ Cannot reach backend. Error:", error.message);
+    console.warn("⚠️ Using MOCK predictions.");
     const categories = ["Meetings", "Alerts", "Newsletters", "Promotions", "Tasks"];
     return cleanEmails.map(() => ({
       predicted_class: categories[Math.floor(Math.random() * categories.length)],
